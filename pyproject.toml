@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=80"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "alertmanager-drill"
+version = "0.1.0"
+description = "Prove Prometheus alert rules fire, route, and resolve against a declared contract"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{ name = "RedBeret" }]
+dependencies = [
+  "PyYAML==6.0.3",
+]
+
+[project.scripts]
+alertctl = "alertdrill.cli:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+
+# The package lives under src/, so a type checker running from the repo root needs telling.
+[tool.pyright]
+extraPaths = ["src"]
+include = ["src", "tests", "lab"]
