@@ -1,0 +1,68 @@
+# Every service binds to loopback only and carries the alertdrill project label, which is
+# what the safety check reads before it will stop or remove anything.
+#
+# The project name is supplied by -p in runner.compose_base() rather than a top-level
+# `name:` key, because Compose v1 rejects that key and WSL boxes still ship v1.
+
+services:
+  target:
+    build:
+      context: ./lab
+      dockerfile: Dockerfile
+    command: ["python", "/app/target_app.py"]
+    environment:
+      DRILL_SERVICE_NAME: drill-target
+    ports:
+      - "127.0.0.1:19095:8080"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8080/metrics')"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  receiver:
+    build:
+      context: ./lab
+      dockerfile: Dockerfile
+    command: ["python", "/app/receiver_app.py"]
+    environment:
+      DRILL_CAPTURE_PATH: /captures/notifications.json
+    volumes:
+      - captures:/captures
+    ports:
+      - "127.0.0.1:19094:8080"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  prometheus:
+    image: prom/prometheus:v3.7.3
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    volumes:
+      - ./lab/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./lab/prometheus/rules:/etc/prometheus/rules:ro
+    ports:
+      - "127.0.0.1:19090:9090"
+    depends_on:
+      - target
+      - alertmanager
+
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    volumes:
+      - ./lab/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    ports:
+      - "127.0.0.1:19093:9093"
+    depends_on:
+      - receiver
+
+volumes:
+  captures:

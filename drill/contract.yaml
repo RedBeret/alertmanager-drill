@@ -1,0 +1,26 @@
+# The declared alerting behavior. Every field here is compared against what the running
+# stack actually did. A reading the stack does not supply compares unequal and fails.
+version: 1
+
+stack:
+  prometheus_url: http://127.0.0.1:19090
+  alertmanager_url: http://127.0.0.1:19093
+  receiver_url: http://127.0.0.1:19094
+  target_url: http://127.0.0.1:19095
+  compose_project: alertdrill
+
+rules:
+  - alert: TargetServiceDown
+    rule_file: lab/prometheus/rules/drill.rules.yml
+    break_path: /break
+    fix_path: /fix
+    max_fire_seconds: 60
+    max_resolve_seconds: 60
+    receiver: oncall-critical
+    labels:
+      severity: critical
+      team: platform
+    annotations:
+      - summary
+      - description
+    expect_suppressed: false

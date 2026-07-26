@@ -1,0 +1,27 @@
+groups:
+  - name: drill
+    interval: 5s
+    rules:
+      - alert: TargetServiceDown
+        expr: drill_service_healthy == 0
+        for: 15s
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: The drill target reports itself unhealthy.
+          description: >
+            drill_service_healthy has been 0 for longer than 15 seconds, which means the
+            target service is reporting a failed state to its scrape endpoint.
+
+      - alert: TargetServiceScrapeFailing
+        expr: up{job="drill-target"} == 0
+        for: 15s
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: Prometheus cannot scrape the drill target.
+          description: >
+            The drill target has been unreachable for longer than 15 seconds, so its
+            health is unknown rather than merely bad.

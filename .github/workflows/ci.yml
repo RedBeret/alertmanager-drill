@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Bootstrap project environment
+        run: ./scripts/bootstrap.sh
+
+      - name: Check entrypoints are executable
+        run: |
+          test -x scripts/bootstrap.sh
+          test -x scripts/lab.sh
+
+      - name: Check shell syntax
+        run: |
+          bash -n scripts/bootstrap.sh
+          bash -n scripts/lab.sh
+
+      - name: Run project tests
+        run: ./scripts/lab.sh test
+
+      - name: Lint
+        run: ./.venv/bin/ruff check src tests lab
+
+      - name: Build the lab images
+        run: docker compose -p alertdrill -f compose.yml build
