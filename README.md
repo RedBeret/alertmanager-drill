@@ -73,12 +73,29 @@ than a bare timeout.
 | `doctor` | check Python, the Docker daemon, the Compose command, and that the contract parses |
 | `up` | start the isolated stack and wait for every endpoint to answer |
 | `status` | report container state and endpoint reachability |
+| `validate` | check the Prometheus config, the rule files, and the Alertmanager config |
 | `down` | remove only this project's containers, networks, and volumes |
 | `test` | run the unit and contract tests |
 
 Every command runs through `./scripts/lab.sh`, which is a thin wrapper around the
 project-local `alertctl`. CI runs the same entrypoints, so it cannot drift from a
 workstation.
+
+## Static validation
+
+```bash
+./scripts/lab.sh validate
+```
+
+`validate` runs `promtool check config`, `promtool check rules` on every rule file, and
+`amtool check-config`. It needs no running stack.
+
+Both tools ship inside the Prometheus and Alertmanager images the stack already pins, so
+they are run from those images rather than installed separately. The validator is then the
+same build as the runtime and the two cannot drift. The configs are mounted at the same
+paths the running containers use, so promtool resolves the `rule_files` glob exactly the
+way Prometheus will. `tests/test_tools.py` fails if those two mount paths ever diverge,
+because that divergence is silent: validation would pass while the stack stayed wrong.
 
 ## What the contract declares
 

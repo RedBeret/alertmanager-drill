@@ -6,7 +6,7 @@ import argparse
 import subprocess
 import sys
 
-from . import config, contract, runner, safety
+from . import config, contract, runner, safety, tools
 
 
 def cmd_doctor(_: argparse.Namespace) -> int:
@@ -83,6 +83,29 @@ def cmd_status(_: argparse.Namespace) -> int:
     return 1 if unreachable else 0
 
 
+def cmd_validate(_: argparse.Namespace) -> int:
+    """Static checks. Nothing here needs the stack running."""
+    results = [tools.check_prometheus_config(), tools.check_alertmanager_config()]
+    rule_files = sorted(config.RULES_DIR.glob("*.rules.yml"))
+    if not rule_files:
+        print("FAIL  no rule files found, so validation would pass without checking anything")
+        return 1
+    results.extend(tools.check_rule_file(path) for path in rule_files)
+
+    for result in results:
+        print(f"{'PASS' if result.passed else 'FAIL'}  {result.name}")
+        if not result.passed:
+            for line in result.output.splitlines():
+                print(f"        {line}")
+
+    failed = [result.name for result in results if not result.passed]
+    if failed:
+        print(f"\nvalidate failed: {', '.join(failed)}")
+        return 1
+    print(f"\nvalidate passed, {len(results)} check(s)")
+    return 0
+
+
 def cmd_test(_: argparse.Namespace) -> int:
     # check=False on purpose: pytest's exit code is the result being reported, not an error
     # in running it, so it is returned rather than raised.
@@ -106,6 +129,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     commands.add_parser("status", help="report stack and endpoint health").set_defaults(
         fn=cmd_status
+    )
+    commands.add_parser("validate", help="check the rules and configs statically").set_defaults(
+        fn=cmd_validate
     )
     commands.add_parser("test", help="run unit and contract tests").set_defaults(fn=cmd_test)
 
