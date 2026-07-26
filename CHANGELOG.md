@@ -9,6 +9,9 @@
   drift from the runtime it validates.
 - A test that fails if the paths the validator mounts ever diverge from the paths the
   running containers mount, since that divergence would pass validation silently.
+- Negative fixtures that `validate` requires the validators to reject: an unparseable
+  PromQL expression, a rule with no `expr` at all, and an Alertmanager route pointing at
+  an undefined receiver. Accepting any of them fails the gate and names the fixture.
 
 - Project plan with twelve testable done criteria and the drill, isolation, and evidence
   contracts.

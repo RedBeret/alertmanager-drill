@@ -1,0 +1,11 @@
+# Must be rejected by promtool check rules.
+#
+# The expression is not valid PromQL. If promtool ever accepts this file, the rule check
+# has stopped doing anything and every other rule in the project is being waved through.
+groups:
+  - name: negative-fixture
+    rules:
+      - alert: UnparseableExpression
+        expr: this is not( valid promql
+        labels:
+          severity: critical

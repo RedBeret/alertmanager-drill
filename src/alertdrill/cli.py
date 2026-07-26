@@ -99,10 +99,28 @@ def cmd_validate(_: argparse.Namespace) -> int:
                 print(f"        {line}")
 
     failed = [result.name for result in results if not result.passed]
+
+    # Second phase. Everything above proves the good files are accepted, which a validator
+    # that accepted anything would also do. These fixtures must be rejected.
+    print()
+    for name in config.NEGATIVE_RULE_FIXTURES:
+        rejected = not tools.check_rule_file(config.FIXTURES / name).passed
+        print(f"{'PASS' if rejected else 'FAIL'}  rejects {name}")
+        if not rejected:
+            failed.append(f"{name} was accepted")
+    for name in config.NEGATIVE_ALERTMANAGER_FIXTURES:
+        rejected = not tools.check_alertmanager_config(config.FIXTURES / name).passed
+        print(f"{'PASS' if rejected else 'FAIL'}  rejects {name}")
+        if not rejected:
+            failed.append(f"{name} was accepted")
+
+    total = len(results) + len(config.NEGATIVE_RULE_FIXTURES) + len(
+        config.NEGATIVE_ALERTMANAGER_FIXTURES
+    )
     if failed:
         print(f"\nvalidate failed: {', '.join(failed)}")
         return 1
-    print(f"\nvalidate passed, {len(results)} check(s)")
+    print(f"\nvalidate passed, {total} check(s), including {total - len(results)} that must fail")
     return 0
 
 

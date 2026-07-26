@@ -1,0 +1,14 @@
+# Must be rejected by promtool check rules.
+#
+# A rule with labels, annotations, and a for duration but no expr looks complete at a
+# glance and can never fire. This is the shape a half-finished rule actually takes.
+groups:
+  - name: negative-fixture
+    rules:
+      - alert: MissingExpression
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: This rule can never evaluate because it has no expression.
