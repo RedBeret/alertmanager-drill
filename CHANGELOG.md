@@ -4,6 +4,12 @@
 
 ### Added
 
+- `alertctl validate`, running `promtool check config`, `promtool check rules`, and
+  `amtool check-config` out of the same images the stack runs, so the validator cannot
+  drift from the runtime it validates.
+- A test that fails if the paths the validator mounts ever diverge from the paths the
+  running containers mount, since that divergence would pass validation silently.
+
 - Project plan with twelve testable done criteria and the drill, isolation, and evidence
   contracts.
 - Declared alerting contract in `drill/contract.yaml`.
