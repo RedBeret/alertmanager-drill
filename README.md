@@ -90,6 +90,19 @@ workstation.
 `validate` runs `promtool check config`, `promtool check rules` on every rule file, and
 `amtool check-config`. It needs no running stack.
 
+It then does the half that matters more. A validator that accepted anything would also
+pass every check above, so `validate` keeps fixtures that must be rejected and fails if any
+of them is accepted:
+
+| Fixture | Why it must fail |
+| --- | --- |
+| `unparseable-expression.rules.yml` | the expression is not valid PromQL |
+| `missing-expression.rules.yml` | labels, annotations, and a `for` duration but no `expr`, which is the shape a half-finished rule actually takes |
+| `undefined-receiver.alertmanager.yml` | the route sends everything to a receiver that is not defined |
+
+Repairing any fixture makes `validate` exit non-zero and name it, which is how the second
+phase was checked rather than assumed.
+
 Both tools ship inside the Prometheus and Alertmanager images the stack already pins, so
 they are run from those images rather than installed separately. The validator is then the
 same build as the runtime and the two cannot drift. The configs are mounted at the same

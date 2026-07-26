@@ -9,6 +9,14 @@ STATE = ARTIFACTS / "state"
 LAB = ROOT / "lab"
 RULES_DIR = LAB / "prometheus" / "rules"
 FIXTURES = ROOT / "tests" / "fixtures"
+
+# Fixtures that must be rejected. If any of these ever passes, the validator has stopped
+# working and every real file it approves means nothing.
+NEGATIVE_RULE_FIXTURES = (
+    "unparseable-expression.rules.yml",
+    "missing-expression.rules.yml",
+)
+NEGATIVE_ALERTMANAGER_FIXTURES = ("undefined-receiver.alertmanager.yml",)
 CONTRACT = ROOT / "drill" / "contract.yaml"
 COMPOSE_FILE = ROOT / "compose.yml"
 

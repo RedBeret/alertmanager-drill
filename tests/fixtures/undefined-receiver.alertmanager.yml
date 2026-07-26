@@ -1,0 +1,14 @@
+# Must be rejected by amtool check-config.
+#
+# The route sends everything to a receiver that is not defined below it. This is the
+# routing defect the drill exists to catch, and it must be caught statically too.
+route:
+  receiver: receiver-that-does-not-exist
+  group_by:
+    - alertname
+
+receivers:
+  - name: default
+    webhook_configs:
+      - url: http://receiver:8080/default
+        send_resolved: true
