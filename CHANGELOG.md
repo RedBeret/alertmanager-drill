@@ -12,6 +12,13 @@
 - Negative fixtures that `validate` requires the validators to reject: an unparseable
   PromQL expression, a rule with no `expr` at all, and an Alertmanager route pointing at
   an undefined receiver. Accepting any of them fails the gate and names the fixture.
+- `promtool test rules` unit tests driving synthetic series through the real rule files,
+  asserting which alerts exist at a given second with which labels and annotations,
+  including that nothing fires inside the `for` window and that a scrape failure raises
+  the warning alert rather than the critical one.
+- Tests that fail if a rule unit test asserts nothing, never expects an alert to fire,
+  never expects one to be absent, omits a rule the contract drills, or fails to pin a
+  label the Alertmanager route matches on.
 
 - Project plan with twelve testable done criteria and the drill, isolation, and evidence
   contracts.

@@ -83,6 +83,31 @@ def check_rule_file(rule_file: Path) -> ToolResult:
     return ToolResult(f"promtool check rules {rule_file.name}", code == 0, code, output)
 
 
+def run_rule_unit_tests(test_file: Path) -> ToolResult:
+    """promtool test rules, which drives synthetic series through the real rule files.
+
+    The whole repository is mounted read-only because the test file references its rule
+    files by relative path, the same way it reads on disk.
+    """
+    relative = test_file.relative_to(config.ROOT)
+    code, output = _run(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "--entrypoint",
+            "promtool",
+            "-v",
+            f"{config.ROOT}:/work:ro",
+            config.PROMETHEUS_IMAGE,
+            "test",
+            "rules",
+            f"/work/{relative}",
+        ]
+    )
+    return ToolResult(f"promtool test rules {test_file.name}", code == 0, code, output)
+
+
 def check_alertmanager_config(config_file: Path | None = None) -> ToolResult:
     cfg = config_file or (config.LAB / "alertmanager" / "alertmanager.yml")
     code, output = _run(

@@ -92,6 +92,12 @@ def cmd_validate(_: argparse.Namespace) -> int:
         return 1
     results.extend(tools.check_rule_file(path) for path in rule_files)
 
+    rule_tests = sorted(config.RULE_TESTS.glob("*.test.yml"))
+    if not rule_tests:
+        print("FAIL  no rule unit tests found, so the rules are only checked for syntax")
+        return 1
+    results.extend(tools.run_rule_unit_tests(path) for path in rule_tests)
+
     for result in results:
         print(f"{'PASS' if result.passed else 'FAIL'}  {result.name}")
         if not result.passed:
