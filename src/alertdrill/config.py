@@ -9,6 +9,7 @@ STATE = ARTIFACTS / "state"
 LAB = ROOT / "lab"
 RULES_DIR = LAB / "prometheus" / "rules"
 FIXTURES = ROOT / "tests" / "fixtures"
+RULE_TESTS = ROOT / "tests" / "rules"
 
 # Fixtures that must be rejected. If any of these ever passes, the validator has stopped
 # working and every real file it approves means nothing.

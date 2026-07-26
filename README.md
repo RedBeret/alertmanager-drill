@@ -103,6 +103,31 @@ of them is accepted:
 Repairing any fixture makes `validate` exit non-zero and name it, which is how the second
 phase was checked rather than assumed.
 
+## Rule unit tests
+
+`validate` also runs `promtool test rules`, which drives synthetic series through the real
+rule files and asserts exactly which alerts exist at a given second, with which labels and
+annotations. Syntax checking only proves a rule parses. These prove it fires when it should
+and, just as importantly, stays quiet when it should not:
+
+- nothing fires while the target is healthy
+- nothing fires while the condition is younger than the rule's `for` duration, so a single
+  bad scrape does not page
+- past the `for` duration the alert exists carrying every label the Alertmanager route
+  matches on
+- a target that recovers inside the `for` window never fires at all
+- an unscrapeable target raises the warning alert, not the critical one, so a network blip
+  does not page as a service fault
+
+The assertions are tied to `for: 15s` in `drill.rules.yml`. Changing that duration to 60s
+makes them fail, and so does changing the `team` label. Both were checked by making the
+change and watching the suite go red.
+
+`tests/test_rule_tests.py` guards the guards: it fails if a test file asserts nothing, if
+no assertion expects an alert to fire, if none expects an alert to be absent, if a rule the
+contract drills has no unit test, or if a unit test does not pin a label the contract
+routes on.
+
 Both tools ship inside the Prometheus and Alertmanager images the stack already pins, so
 they are run from those images rather than installed separately. The validator is then the
 same build as the runtime and the two cannot drift. The configs are mounted at the same

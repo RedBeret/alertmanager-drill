@@ -1,0 +1,91 @@
+# Unit tests for the alerting rules, run by promtool test rules.
+#
+# These drive synthetic series through the real rule files and assert exactly which alerts
+# exist at a given moment, with which labels and annotations. They are the cheapest place to
+# catch a rule that fires too early, never fires, or has lost a label a route depends on,
+# because none of it needs a running stack.
+#
+# The timings below are tied to `for: 15s` in drill.rules.yml. A change to that duration
+# should break these tests, which is the point.
+
+rule_files:
+  - ../../lab/prometheus/rules/drill.rules.yml
+
+evaluation_interval: 5s
+
+tests:
+  # The target goes unhealthy and stays that way.
+  - interval: 5s
+    input_series:
+      - series: 'drill_service_healthy{service="drill-target",job="drill-target",instance="target:8080"}'
+        values: "1 1 1 0 0 0 0 0 0 0"
+
+    alert_rule_test:
+      # Healthy. Nothing should exist.
+      - eval_time: 10s
+        alertname: TargetServiceDown
+        exp_alerts: []
+
+      # Unhealthy since 15s but the for duration has not elapsed, so it is pending rather
+      # than firing. A rule that fired here would page on a single bad scrape.
+      - eval_time: 20s
+        alertname: TargetServiceDown
+        exp_alerts: []
+
+      # Past the for duration. This must carry every label the Alertmanager route matches on.
+      - eval_time: 45s
+        alertname: TargetServiceDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              team: platform
+              service: drill-target
+              job: drill-target
+              instance: target:8080
+            exp_annotations:
+              summary: The drill target reports itself unhealthy.
+              description: "drill_service_healthy has been 0 for longer than 15 seconds, which means the target service is reporting a failed state to its scrape endpoint.\n"
+
+  # The target recovers before the for duration elapses. Nothing should ever fire.
+  - interval: 5s
+    input_series:
+      - series: 'drill_service_healthy{service="drill-target",job="drill-target",instance="target:8080"}'
+        values: "1 0 0 1 1 1 1 1"
+
+    alert_rule_test:
+      - eval_time: 15s
+        alertname: TargetServiceDown
+        exp_alerts: []
+      - eval_time: 35s
+        alertname: TargetServiceDown
+        exp_alerts: []
+
+  # Prometheus cannot scrape the target at all. Its health is unknown rather than bad, which
+  # is a different alert at a different severity and therefore a different route.
+  - interval: 5s
+    input_series:
+      - series: 'up{job="drill-target",instance="target:8080"}'
+        values: "1 1 0 0 0 0 0 0"
+
+    alert_rule_test:
+      - eval_time: 15s
+        alertname: TargetServiceScrapeFailing
+        exp_alerts: []
+
+      - eval_time: 40s
+        alertname: TargetServiceScrapeFailing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              team: platform
+              job: drill-target
+              instance: target:8080
+            exp_annotations:
+              summary: Prometheus cannot scrape the drill target.
+              description: "The drill target has been unreachable for longer than 15 seconds, so its health is unknown rather than merely bad.\n"
+
+      # The unhealthy alert must not fire from a scrape failure. If it did, a network blip
+      # would page as a service fault.
+      - eval_time: 40s
+        alertname: TargetServiceDown
+        exp_alerts: []
