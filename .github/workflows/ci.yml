@@ -42,3 +42,8 @@ jobs:
 
       - name: Build the lab images
         run: docker compose -p alertdrill -f compose.yml build
+
+      # Runs promtool and amtool out of the pinned images, unit tests the rules against
+      # synthetic series, and requires the negative fixtures to be rejected.
+      - name: Validate rules and configuration
+        run: ./scripts/lab.sh validate
