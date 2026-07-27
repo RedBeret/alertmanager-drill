@@ -60,5 +60,35 @@
   invoked or if a run step reimplements what alertctl does.
 - Four PRs, #3 through #6. 43 tests, up from 20. validate runs 7 checks.
 
-Next: Stage 3, the live fire drill. Measure latency from condition start rather than from
-when Prometheus noticed, and write the first evidence file.
+
+## 2026-07-26 - Stages 3 to 6
+
+- Took Dependabot's Python 3.14 bump apart rather than merging it. It changed the
+  Dockerfile alone, which would have left `config.PYTHON_BASE_IMAGE` naming 3.12.11 while
+  the containers ran 3.14.6, with no test tying the two together. That value goes straight
+  into the evidence. Bumped both, added the missing drift test, and checked it by reverting
+  config alone. Verified the containers actually serve on 3.14 rather than trusting CI.
+- Built the observation layer read-only so a failed drill can still use it while cleaning
+  up. Pinned three behaviours by test: a timeout returns None, an unreadable endpoint
+  raises rather than returning empty, and a notification from before the condition started
+  is ignored.
+- Measured latency from the moment the condition began. A stopwatch started when polling
+  began would hide the front of the interval, which is the part an on-call engineer
+  actually lives through.
+- Put the restore in a finally block. Checked it by making the drill raise mid run and
+  asserting the last POST was still to /fix.
+- For suppression, required Alertmanager to report the alert as suppressed as well as the
+  receiver staying empty. Pointing the contract at a condition that never fires shows why:
+  no_delivery passes, because a dead alert delivers nothing too.
+- Rendered all three evidence formats from one in-memory result, then verified by reading
+  the files back off disk and reconciling them rather than trusting the writer.
+- Compared neighbours by state and not by count in the clean room, since a teardown that
+  stopped a neighbour leaves the count identical. Ran it against the two kind clusters
+  already on this box.
+- CI caught a real ordering bug on its first live run. silence-drill returned before the
+  alert had cleared, so the next command refused an unclean baseline. Invisible locally
+  because commands were minutes apart. Every drill now waits for the alert to settle.
+- Added doctor to CI, since criterion 1 names it and nothing had been running it there.
+- Eight PRs, #8 through #15. 87 tests, up from 43.
+
+All twelve done criteria met.

@@ -16,6 +16,7 @@ WORKFLOW = config.ROOT / ".github" / "workflows" / "ci.yml"
 # Commands CI must invoke. Each one is a gate that would otherwise be local only.
 REQUIRED_COMMANDS = (
     "./scripts/bootstrap.sh",
+    "./scripts/lab.sh doctor",
     "./scripts/lab.sh test",
     "./scripts/lab.sh validate",
     "./scripts/lab.sh up",
