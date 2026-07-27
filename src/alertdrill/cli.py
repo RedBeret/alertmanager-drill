@@ -6,7 +6,18 @@ import argparse
 import subprocess
 import sys
 
-from . import config, contract, drill, evidence, observe, runner, safety, silence, tools
+from . import (
+    cleanroom,
+    config,
+    contract,
+    drill,
+    evidence,
+    observe,
+    runner,
+    safety,
+    silence,
+    tools,
+)
 
 
 def cmd_doctor(_: argparse.Namespace) -> int:
@@ -203,6 +214,22 @@ def cmd_evidence(_: argparse.Namespace) -> int:
     return _report(results)
 
 
+def cmd_clean_room(_: argparse.Namespace) -> int:
+    """Tear down and measure what was left behind, including what was not ours."""
+    result = cleanroom.run()
+    for check in result.checks:
+        mark = "PASS" if check.passed else "FAIL"
+        print(f"{mark}  {check.name}")
+        if not check.passed:
+            print(f"      expected {check.expected!r}")
+            print(f"      observed {check.observed!r}")
+    if not result.passed:
+        print("\nclean room failed")
+        return 1
+    print("\nclean room passed, every neighbouring container untouched")
+    return 0
+
+
 def cmd_test(_: argparse.Namespace) -> int:
     # check=False on purpose: pytest's exit code is the result being reported, not an error
     # in running it, so it is returned rather than raised.
@@ -239,6 +266,9 @@ def main(argv: list[str] | None = None) -> int:
     commands.add_parser(
         "silence-drill", help="prove a silence suppresses delivery"
     ).set_defaults(fn=cmd_silence_drill)
+    commands.add_parser(
+        "clean-room", help="tear down and prove neighbours were untouched"
+    ).set_defaults(fn=cmd_clean_room)
     commands.add_parser("test", help="run unit and contract tests").set_defaults(fn=cmd_test)
 
     args = parser.parse_args(argv)
@@ -250,7 +280,7 @@ def main(argv: list[str] | None = None) -> int:
     except runner.ComposeUnavailable as error:
         print(f"unavailable: {error}", file=sys.stderr)
         return 2
-    except drill.DrillError as error:
+    except (drill.DrillError, cleanroom.CleanRoomError) as error:
         print(f"refused: {error}", file=sys.stderr)
         return 2
     except observe.ObservationError as error:
