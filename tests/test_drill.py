@@ -43,7 +43,7 @@ def delivery(status: str, at: float, receiver: str = "oncall-critical", **labels
 def posts(monkeypatch):
     """Record every POST the drill makes so restoration can be asserted."""
     seen: list[str] = []
-    monkeypatch.setattr(drill, "_post", seen.append)
+    monkeypatch.setattr(drill, "post_to_target", seen.append)
     monkeypatch.setattr(observe, "reset_receiver", lambda: None)
     monkeypatch.setattr(drill.time, "time", lambda: 1000.0)
     return seen

@@ -118,6 +118,32 @@ def alertmanager_alerts() -> list[dict]:
     return _get(f"{config.ALERTMANAGER_URL}/api/v2/alerts")
 
 
+def alert_state(alertname: str) -> str | None:
+    """active, suppressed, or unprocessed as Alertmanager sees it, or None if absent.
+
+    This is what separates a silenced alert from a broken one. Both deliver nothing, and
+    without asking Alertmanager they look identical.
+    """
+    for alert in alertmanager_alerts():
+        if alert.get("labels", {}).get("alertname") == alertname:
+            return alert.get("status", {}).get("state")
+    return None
+
+
+def wait_for_alert_state(
+    alertname: str,
+    state: str,
+    timeout_seconds: float,
+    poll_seconds: float = 1.0,
+) -> bool:
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        if alert_state(alertname) == state:
+            return True
+        time.sleep(poll_seconds)
+    return False
+
+
 def prometheus_rule_state(alertname: str) -> str | None:
     """inactive, pending, or firing as Prometheus currently sees it.
 

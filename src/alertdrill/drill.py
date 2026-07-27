@@ -69,7 +69,7 @@ class RuleResult:
         }
 
 
-def _post(url: str) -> None:
+def post_to_target(url: str) -> None:
     request = urllib.request.Request(url, data=b"", method="POST")
     try:
         with urllib.request.urlopen(request, timeout=10):
@@ -109,7 +109,7 @@ def run_rule(rule: RuleContract, target_url: str | None = None) -> RuleResult:
 
     try:
         started = time.time()
-        _post(f"{base}{rule.break_path}")
+        post_to_target(f"{base}{rule.break_path}")
 
         firing = observe.wait_for_delivery(
             rule.alert, "firing", started, timeout_seconds=rule.max_fire_seconds
@@ -149,7 +149,7 @@ def run_rule(rule: RuleContract, target_url: str | None = None) -> RuleResult:
         # Restore, then prove the all-clear arrives too. An alert that fires and never
         # clears leaves an on-call engineer chasing a fault that is already fixed.
         cleared = time.time()
-        _post(f"{base}{rule.fix_path}")
+        post_to_target(f"{base}{rule.fix_path}")
         resolved = observe.wait_for_delivery(
             rule.alert, "resolved", cleared, timeout_seconds=rule.max_resolve_seconds
         )
@@ -175,6 +175,6 @@ def run_rule(rule: RuleContract, target_url: str | None = None) -> RuleResult:
     finally:
         # Unconditional. If this drill raised, the target must still come back healthy.
         try:
-            _post(f"{base}{rule.fix_path}")
+            post_to_target(f"{base}{rule.fix_path}")
         except DrillError:
             pass
