@@ -38,6 +38,6 @@ TARGET_URL = f"http://127.0.0.1:{TARGET_PORT}"
 
 PROMETHEUS_IMAGE = "prom/prometheus:v3.7.3"
 ALERTMANAGER_IMAGE = "prom/alertmanager:v0.28.1"
-PYTHON_BASE_IMAGE = "python:3.12.11-slim"
+PYTHON_BASE_IMAGE = "python:3.14.6-slim"
 
 SERVICES = ("target", "receiver", "prometheus", "alertmanager")
