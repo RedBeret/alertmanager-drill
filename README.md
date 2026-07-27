@@ -19,8 +19,9 @@ production credentials are required.
 
 ## Current state
 
-Stages 1 and 2 of 6 are complete: the contract, the isolated stack, the operator
-commands, and the full static gate. The live drill lands in the stages below.
+All six stages are complete and all twelve done criteria in
+[docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.md) are met, each verified against a running
+stack rather than asserted.
 
 - declared alerting contract in `drill/contract.yaml`
 - isolated four-service stack on loopback-only ports
@@ -30,7 +31,12 @@ commands, and the full static gate. The live drill lands in the stages below.
 - static validation with promtool and amtool run from the images the stack itself uses
 - negative fixtures the validators must reject, so the gate is provably live
 - rule unit tests over synthetic series, asserting what does and does not fire
-- 43 unit and contract tests, including checks that no gate can pass vacuously
+- a live drill that breaks a real service and measures what reached the receiver
+- suppression proved by requiring Alertmanager to report the alert suppressed, not just
+  by the absence of a notification
+- JSON, Markdown, and JUnit evidence rendered from one result so they cannot disagree
+- a clean-room teardown proof comparing neighbours by state rather than by count
+- 87 unit and contract tests, including checks that no gate can pass vacuously
 
 ## Architecture
 
@@ -307,3 +313,25 @@ such flag and it would report the container started rather than the service answ
 
 The full plan and the twelve done criteria are in
 [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.md).
+
+## Status
+
+All twelve done criteria are met. Each was checked by breaking the thing it guards and
+watching the gate go red before it was kept:
+
+| Gate | How it was proven able to fail |
+| --- | --- |
+| static validation | repaired a negative fixture, `validate` exited 1 and named it |
+| rule unit tests | changed `for: 15s` to `60s`, and separately the `team` label |
+| drill routing | declared the wrong receiver, `firing.receiver` failed while `firing.delivered` still passed |
+| drill latency | declared a 2 second bound against a rule that needs 20 |
+| suppression | pointed the contract at a condition that never fires, so `no_delivery` passed and only the Alertmanager state check caught it |
+| clean room | covered a stopped neighbour, where the count is unchanged and only the state comparison fails |
+| CI wiring | deleted the validate step, then replaced an entrypoint with raw promtool |
+| evidence | zero checks must render as `fail`, and a missing latency as `not observed` rather than `0s` |
+
+The first live CI run failed, which is the sort of thing this project exists to notice.
+`silence-drill` restored the target and returned before Prometheus had re-evaluated the
+rule, so the next command refused an unclean baseline. It never showed up locally because
+the commands were being run minutes apart by hand. Every drill now waits for the alert to
+clear before handing the stack back.

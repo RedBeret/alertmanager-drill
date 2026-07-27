@@ -24,6 +24,9 @@ jobs:
       - name: Bootstrap project environment
         run: ./scripts/bootstrap.sh
 
+      - name: Check the operator environment
+        run: ./scripts/lab.sh doctor
+
       - name: Check entrypoints are executable
         run: |
           test -x scripts/bootstrap.sh
