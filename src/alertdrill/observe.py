@@ -130,6 +130,21 @@ def alert_state(alertname: str) -> str | None:
     return None
 
 
+def wait_until_alert_clears(alertname: str, timeout_seconds: float = 90.0) -> bool:
+    """Wait until Prometheus stops reporting the rule as pending or firing.
+
+    A command that restores the target and returns immediately leaves the alert still
+    firing for as long as the rule takes to re-evaluate, and the next command's baseline
+    check then refuses. Every drill must hand back the state it borrowed.
+    """
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        if prometheus_rule_state(alertname) == "inactive":
+            return True
+        time.sleep(1.0)
+    return False
+
+
 def wait_for_alert_state(
     alertname: str,
     state: str,

@@ -34,6 +34,12 @@ def stub(monkeypatch):
     monkeypatch.setattr(silence, "create", lambda alert, minutes=10: "sil-1")
     monkeypatch.setattr(silence, "expire", calls["expired"].append)
     monkeypatch.setattr(observe, "deliveries", list)
+    calls["waited_for_clear"] = []
+    monkeypatch.setattr(
+        observe,
+        "wait_until_alert_clears",
+        lambda alert, timeout_seconds=90.0: calls["waited_for_clear"].append(alert) or True,
+    )
     return calls
 
 
@@ -95,6 +101,25 @@ def test_the_silence_is_removed_even_when_the_drill_raises(stub, monkeypatch):
         silence.run(RULE)
     assert stub["expired"] == ["sil-1"]
     assert stub["posts"][-1].endswith("/fix"), "target was not restored"
+
+
+def test_it_waits_for_the_alert_to_clear_before_returning(stub, monkeypatch):
+    """A silenced alert sends no resolved notification, so nothing else waits for the rule
+    to settle. Returning early leaves the next command refusing an unclean baseline, which
+    is how this was found: green locally, red in CI where commands run back to back."""
+    monkeypatch.setattr(observe, "wait_for_alert_state", lambda *a, **k: True)
+    silence.run(RULE)
+    assert stub["waited_for_clear"] == ["TargetServiceDown"]
+
+
+def test_it_still_waits_for_the_alert_to_clear_when_the_drill_raises(stub, monkeypatch):
+    def explode(*args, **kwargs):
+        raise observe.ObservationError("boom")
+
+    monkeypatch.setattr(observe, "wait_for_alert_state", explode)
+    with pytest.raises(observe.ObservationError):
+        silence.run(RULE)
+    assert stub["waited_for_clear"] == ["TargetServiceDown"]
 
 
 def test_a_missing_silence_id_is_refused(monkeypatch):
