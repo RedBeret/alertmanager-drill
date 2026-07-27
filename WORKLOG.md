@@ -35,4 +35,30 @@
   arrived in 11 seconds.
 - 20 tests passing. `doctor` green.
 
-Next: Stage 2, promtool rule validation with negative fixtures that must fail.
+
+## 2026-07-26 - Stage 2
+
+- Found that promtool ships inside `prom/prometheus` and amtool inside `prom/alertmanager`,
+  at exactly the versions already pinned in compose.yml. Ran the validators out of those
+  images rather than pinning them separately, so the checker cannot drift from the runtime.
+- Mounted the configs at the paths the running containers use, so promtool resolves the
+  `rule_files` glob the way Prometheus will. Added a test that fails if those two mount
+  paths ever diverge, since that divergence passes validation while the stack stays wrong.
+  Checked it by breaking the mountpoint and watching it go red.
+- Added three negative fixtures and made validate require their rejection. Everything
+  before that only proved good files are accepted, which a validator accepting anything
+  would also do. Checked by repairing one fixture: validate exited 1 and named it.
+- Added promtool rule unit tests over synthetic series. The negative assertions carry the
+  weight: nothing fires inside the `for` window, a target that recovers in time never
+  fires, and a scrape failure raises the warning alert rather than the critical one.
+- Checked those by changing `for: 15s` to 60s and separately by changing the team label.
+  Both failed the suite. Restored and confirmed green.
+- Added tests over the unit tests themselves, because a suite that only ever expected
+  empty alert lists would pass against a deleted rule file.
+- Wired validate into CI, which had been building images and running pytest without ever
+  checking a rule file. Added workflow tests that fail if an entrypoint stops being
+  invoked or if a run step reimplements what alertctl does.
+- Four PRs, #3 through #6. 43 tests, up from 20. validate runs 7 checks.
+
+Next: Stage 3, the live fire drill. Measure latency from condition start rather than from
+when Prometheus noticed, and write the first evidence file.

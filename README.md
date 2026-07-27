@@ -19,15 +19,18 @@ production credentials are required.
 
 ## Current state
 
-Stage 1 of 6 is complete: the contract, the isolated stack, and the operator commands.
-The drill logic itself lands in the stages below.
+Stages 1 and 2 of 6 are complete: the contract, the isolated stack, the operator
+commands, and the full static gate. The live drill lands in the stages below.
 
 - declared alerting contract in `drill/contract.yaml`
 - isolated four-service stack on loopback-only ports
 - Compose project label used as the safety boundary before any destructive action
-- `alertctl` operator command with `doctor`, `up`, `down`, `status`, and `test`
+- `alertctl` operator command with `doctor`, `up`, `down`, `status`, `validate`, and `test`
 - readiness polled against each service's own endpoint rather than container state
-- 20 unit and contract tests, including checks that the contract cannot pass vacuously
+- static validation with promtool and amtool run from the images the stack itself uses
+- negative fixtures the validators must reject, so the gate is provably live
+- rule unit tests over synthetic series, asserting what does and does not fire
+- 43 unit and contract tests, including checks that no gate can pass vacuously
 
 ## Architecture
 
@@ -172,7 +175,7 @@ such flag and it would report the container started rather than the service answ
 | Stage | Delivers |
 | --- | --- |
 | 1 | contract, isolated stack, operator commands (done) |
-| 2 | promtool rule validation and negative fixtures that must fail |
+| 2 | promtool rule validation and negative fixtures that must fail (done) |
 | 3 | live fire drill with measured latency |
 | 4 | routing and resolution checks against the declared receiver |
 | 5 | silence and inhibition handling |
