@@ -6,7 +6,7 @@ import argparse
 import subprocess
 import sys
 
-from . import config, contract, runner, safety, tools
+from . import config, contract, drill, observe, runner, safety, tools
 
 
 def cmd_doctor(_: argparse.Namespace) -> int:
@@ -130,6 +130,36 @@ def cmd_validate(_: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_drill(_: argparse.Namespace) -> int:
+    """Break the target for real, measure what reached the receiver, then restore it."""
+    loaded = contract.load()
+    results = []
+
+    for rule in loaded.rules:
+        drill.require_healthy_baseline(rule)
+        print(f"drilling {rule.alert}")
+        result = drill.run_rule(rule)
+        results.append(result)
+
+        width = max(len(check.name) for check in result.checks)
+        for check in result.checks:
+            mark = "PASS" if check.passed else "FAIL"
+            print(f"  {mark}  {check.name.ljust(width)}  expected {check.expected!r}", end="")
+            print("" if check.passed else f", observed {check.observed!r}")
+
+        fired = "not observed" if result.fire_seconds is None else f"{result.fire_seconds}s"
+        cleared = "not observed" if result.resolve_seconds is None else f"{result.resolve_seconds}s"
+        print(f"  fire {fired}, resolve {cleared}")
+        print(f"  {result.as_dict()['passed']} of {result.as_dict()['total']} checks passed\n")
+
+    failed = [result.alert for result in results if not result.passed]
+    if failed:
+        print(f"drill failed: {', '.join(failed)}")
+        return 1
+    print(f"drill passed, {len(results)} rule(s)")
+    return 0
+
+
 def cmd_test(_: argparse.Namespace) -> int:
     # check=False on purpose: pytest's exit code is the result being reported, not an error
     # in running it, so it is returned rather than raised.
@@ -157,6 +187,9 @@ def main(argv: list[str] | None = None) -> int:
     commands.add_parser("validate", help="check the rules and configs statically").set_defaults(
         fn=cmd_validate
     )
+    commands.add_parser("drill", help="fire each declared rule for real and measure").set_defaults(
+        fn=cmd_drill
+    )
     commands.add_parser("test", help="run unit and contract tests").set_defaults(fn=cmd_test)
 
     args = parser.parse_args(argv)
@@ -167,6 +200,13 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     except runner.ComposeUnavailable as error:
         print(f"unavailable: {error}", file=sys.stderr)
+        return 2
+    except drill.DrillError as error:
+        print(f"refused: {error}", file=sys.stderr)
+        return 2
+    except observe.ObservationError as error:
+        # Never a pass. If the stack cannot be read, nothing was proven either way.
+        print(f"could not observe the stack: {error}", file=sys.stderr)
         return 2
     except subprocess.CalledProcessError as error:
         print(f"command failed with exit {error.returncode}", file=sys.stderr)

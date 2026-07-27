@@ -77,6 +77,7 @@ than a bare timeout.
 | `up` | start the isolated stack and wait for every endpoint to answer |
 | `status` | report container state and endpoint reachability |
 | `validate` | check the Prometheus config, the rule files, and the Alertmanager config |
+| `drill` | break the target for real, measure what reached the receiver, then restore it |
 | `down` | remove only this project's containers, networks, and volumes |
 | `test` | run the unit and contract tests |
 
@@ -137,6 +138,45 @@ same build as the runtime and the two cannot drift. The configs are mounted at t
 paths the running containers use, so promtool resolves the `rule_files` glob exactly the
 way Prometheus will. `tests/test_tools.py` fails if those two mount paths ever diverge,
 because that divergence is silent: validation would pass while the stack stayed wrong.
+
+## The drill
+
+```bash
+./scripts/lab.sh drill
+```
+
+For each rule the contract declares, `drill` breaks the target through the target's own
+API, waits for the notification, compares it against what was declared, clears the
+condition, and requires the resolved notification too.
+
+Latency is measured from the moment the condition began, not from when Prometheus noticed
+or when the observer started polling. The gap between those is exactly the delay an on-call
+engineer lives through, and a stopwatch started later would hide the front of it.
+
+Restoring the target runs in a `finally` block. A drill that raises partway still leaves
+the target healthy, because otherwise the next run starts dirty and its baseline means
+nothing. The drill also refuses to start if the alert is already firing, or if Prometheus
+has never heard of the rule the contract names.
+
+A sample run:
+
+```
+PASS  firing.delivered               expected True
+PASS  firing.latency                 expected 'within 60s'
+PASS  firing.receiver                expected 'oncall-critical'
+PASS  firing.label.severity          expected 'critical'
+PASS  firing.label.team              expected 'platform'
+PASS  firing.annotation.summary      expected True
+PASS  firing.annotation.description  expected True
+PASS  resolved.delivered             expected True
+PASS  resolved.latency               expected 'within 60s'
+PASS  resolved.receiver              expected 'oncall-critical'
+fire 20.3s, resolve 4.25s
+```
+
+Declaring the wrong receiver makes it exit 1 with `firing.receiver` failing while
+`firing.delivered` still passes, which is the point: an alert that fires correctly and
+reaches the wrong team is still a paging failure.
 
 ## What the contract declares
 
