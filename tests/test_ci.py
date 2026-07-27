@@ -18,7 +18,16 @@ REQUIRED_COMMANDS = (
     "./scripts/bootstrap.sh",
     "./scripts/lab.sh test",
     "./scripts/lab.sh validate",
+    "./scripts/lab.sh up",
+    "./scripts/lab.sh drill",
+    "./scripts/lab.sh silence-drill",
+    "./scripts/lab.sh evidence",
+    "./scripts/lab.sh down",
 )
+
+# clean-room is deliberately absent. It deletes the stack and refuses to run without a
+# neighbouring container, which a fresh runner does not have.
+EXCLUDED_COMMANDS = ("./scripts/lab.sh clean-room",)
 
 
 def workflow() -> dict:
@@ -64,3 +73,36 @@ def test_ci_does_not_interpolate_untrusted_input():
 
 def test_workflow_declares_least_privilege_permissions():
     assert workflow().get("permissions") == {"contents": "read"}
+
+
+def test_clean_room_is_not_run_in_ci():
+    """It deletes the stack and refuses without a neighbouring container, which a fresh
+    runner does not have. Recording the exclusion here stops it being added by mistake."""
+    joined = "\n".join(run_steps())
+    for command in EXCLUDED_COMMANDS:
+        assert command not in joined, f"CI runs {command}, which cannot work on a runner"
+
+
+def test_teardown_runs_even_when_a_gate_fails():
+    """Without if: always() a failed drill leaves the stack running on the runner."""
+    raw = workflow()
+    live = raw["jobs"]["live"]["steps"]
+    teardown = [step for step in live if step.get("run", "").strip().endswith("lab.sh down")]
+    assert teardown, "the live job never tears down"
+    for step in teardown:
+        assert step.get("if") == "always()", "teardown is conditional on success"
+
+
+def test_evidence_is_published_and_an_empty_upload_is_an_error():
+    """if-no-files-found defaults to warn, which would let an empty evidence directory
+    upload quietly and look like a successful run."""
+    live = workflow()["jobs"]["live"]["steps"]
+    upload = [step for step in live if "upload-artifact" in str(step.get("uses", ""))]
+    assert upload, "evidence is never published"
+    assert upload[0]["with"]["if-no-files-found"] == "error"
+
+
+def test_the_live_job_waits_for_the_static_gate():
+    """Starting containers before the rules are known to parse wastes a runner and buries
+    the real error under a timeout."""
+    assert workflow()["jobs"]["live"].get("needs") == "validate"

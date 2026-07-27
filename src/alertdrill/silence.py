@@ -94,7 +94,11 @@ def run(rule: RuleContract, target_url: str | None = None) -> RuleResult:
     finally:
         try:
             post_to_target(f"{base}{rule.fix_path}")
-        except DrillError:
+            # A silenced alert sends no resolved notification, so nothing else here waits
+            # for the rule to settle. Without this the command returns while the alert is
+            # still firing and the next one refuses to start on an unclean baseline.
+            observe.wait_until_alert_clears(rule.alert)
+        except (DrillError, observe.ObservationError):
             pass
         if silence_id:
             try:

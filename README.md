@@ -223,6 +223,24 @@ fails if the outcome or the counts differ between formats, if a run with zero ch
 renders as a pass, if a missing latency is written as `0s` instead of `not observed`, or if
 any report contains credential-shaped text.
 
+## Continuous integration
+
+`.github/workflows/ci.yml` runs the same `./scripts/lab.sh` entrypoints a workstation does,
+in two jobs. `validate` is the static gate. `live` starts the real stack, drills every
+declared rule, proves suppression, writes evidence, and publishes it as an artifact.
+
+The live job waits on the static gate, because starting containers before the rules are
+known to parse wastes a runner and buries the real error under a timeout. Teardown runs
+under `if: always()`, so a run that fails a gate still leaves nothing behind.
+
+The pipeline holds no drill logic of its own. `tests/test_ci.py` fails if any run step is
+something other than a project entrypoint, if a gate stops being invoked, if teardown
+becomes conditional on success, if the evidence upload is allowed to find no files, or if a
+run step interpolates a `${{ }}` expression.
+
+`clean-room` is deliberately excluded and there is a test recording why: it deletes the
+stack and refuses without a neighbouring container, which a fresh runner does not have.
+
 ## What the contract declares
 
 `drill/contract.yaml` declares, for each rule under test, the condition that makes it
