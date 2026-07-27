@@ -33,3 +33,21 @@ def test_images_are_version_pinned():
     for image in (config.PROMETHEUS_IMAGE, config.ALERTMANAGER_IMAGE, config.PYTHON_BASE_IMAGE):
         assert ":" in image, image
         assert not image.endswith(":latest"), image
+
+
+def test_python_base_image_matches_the_dockerfile():
+    """config.py is what the evidence reports, and nothing else ties it to the Dockerfile.
+
+    A dependency bot updating the Dockerfile alone leaves config.py naming a base image the
+    stack does not run, and every check would still pass while the report lied.
+    """
+    dockerfile = (config.LAB / "Dockerfile").read_text(encoding="utf-8")
+    declared = [
+        line.split(maxsplit=1)[1].strip()
+        for line in dockerfile.splitlines()
+        if line.startswith("FROM ")
+    ]
+    assert declared, "no FROM line in the lab Dockerfile"
+    assert config.PYTHON_BASE_IMAGE in declared, (
+        f"config says {config.PYTHON_BASE_IMAGE}, Dockerfile says {declared}"
+    )
