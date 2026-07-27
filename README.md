@@ -78,6 +78,7 @@ than a bare timeout.
 | `status` | report container state and endpoint reachability |
 | `validate` | check the Prometheus config, the rule files, and the Alertmanager config |
 | `drill` | break the target for real, measure what reached the receiver, then restore it |
+| `evidence` | drill once and write JSON, Markdown, and JUnit that agree |
 | `down` | remove only this project's containers, networks, and volumes |
 | `test` | run the unit and contract tests |
 
@@ -177,6 +178,24 @@ fire 20.3s, resolve 4.25s
 Declaring the wrong receiver makes it exit 1 with `firing.receiver` failing while
 `firing.delivered` still passes, which is the point: an alert that fires correctly and
 reaches the wrong team is still a paging failure.
+
+## Evidence
+
+```bash
+./scripts/lab.sh evidence
+```
+
+Runs the drill once and renders three reports from the same in-memory result:
+`artifacts/evidence/drill.json` is authoritative, `drill.md` is the operator view, and
+`drill.xml` is JUnit so CI shows a failed comparison as a failed test rather than a log
+line nobody opens.
+
+Rendering all three from one result is deliberate. Reports built from separate passes over
+the stack are how a JSON file and a Markdown file end up disagreeing about whether a
+release was good, and a reviewer has no way to tell which one lied. `tests/test_evidence.py`
+fails if the outcome or the counts differ between formats, if a run with zero checks
+renders as a pass, if a missing latency is written as `0s` instead of `not observed`, or if
+any report contains credential-shaped text.
 
 ## What the contract declares
 

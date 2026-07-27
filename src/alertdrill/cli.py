@@ -6,7 +6,7 @@ import argparse
 import subprocess
 import sys
 
-from . import config, contract, drill, observe, runner, safety, tools
+from . import config, contract, drill, evidence, observe, runner, safety, tools
 
 
 def cmd_doctor(_: argparse.Namespace) -> int:
@@ -130,11 +130,9 @@ def cmd_validate(_: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_drill(_: argparse.Namespace) -> int:
-    """Break the target for real, measure what reached the receiver, then restore it."""
+def _run_all_rules() -> list[drill.RuleResult]:
     loaded = contract.load()
     results = []
-
     for rule in loaded.rules:
         drill.require_healthy_baseline(rule)
         print(f"drilling {rule.alert}")
@@ -152,12 +150,30 @@ def cmd_drill(_: argparse.Namespace) -> int:
         print(f"  fire {fired}, resolve {cleared}")
         print(f"  {result.as_dict()['passed']} of {result.as_dict()['total']} checks passed\n")
 
+    return results
+
+
+def _report(results: list[drill.RuleResult]) -> int:
     failed = [result.alert for result in results if not result.passed]
     if failed:
         print(f"drill failed: {', '.join(failed)}")
         return 1
     print(f"drill passed, {len(results)} rule(s)")
     return 0
+
+
+def cmd_drill(_: argparse.Namespace) -> int:
+    """Break the target for real, measure what reached the receiver, then restore it."""
+    return _report(_run_all_rules())
+
+
+def cmd_evidence(_: argparse.Namespace) -> int:
+    """One drill, three reports. All rendered from the same result so they cannot disagree."""
+    results = _run_all_rules()
+    paths = evidence.write_all(results)
+    for name, path in paths.items():
+        print(f"  {name:<9} {path}")
+    return _report(results)
 
 
 def cmd_test(_: argparse.Namespace) -> int:
@@ -189,6 +205,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     commands.add_parser("drill", help="fire each declared rule for real and measure").set_defaults(
         fn=cmd_drill
+    )
+    commands.add_parser("evidence", help="drill once, write JSON, Markdown, and JUnit").set_defaults(
+        fn=cmd_evidence
     )
     commands.add_parser("test", help="run unit and contract tests").set_defaults(fn=cmd_test)
 

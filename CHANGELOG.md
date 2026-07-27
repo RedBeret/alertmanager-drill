@@ -43,6 +43,10 @@
 - Restoration of the target in a `finally` block, and a refusal to start when the alert
   is already firing or when Prometheus has never loaded the rule the contract names.
 
+- `alertctl evidence`, writing JSON, Markdown, and JUnit from one drill result, with
+  tests that fail if the three disagree on outcome or counts, if an empty run renders as
+  a pass, or if a missing latency is written as zero rather than as not observed.
+
 ### Fixed
 
 - Receiver exited at startup because the named volume at `/captures` was root-owned and
