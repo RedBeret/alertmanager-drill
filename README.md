@@ -79,6 +79,7 @@ than a bare timeout.
 | `validate` | check the Prometheus config, the rule files, and the Alertmanager config |
 | `drill` | break the target for real, measure what reached the receiver, then restore it |
 | `evidence` | drill once and write JSON, Markdown, and JUnit that agree |
+| `silence-drill` | prove a silence suppresses delivery rather than the alert being broken |
 | `down` | remove only this project's containers, networks, and volumes |
 | `test` | run the unit and contract tests |
 
@@ -179,6 +180,30 @@ Declaring the wrong receiver makes it exit 1 with `firing.receiver` failing whil
 `firing.delivered` still passes, which is the point: an alert that fires correctly and
 reaches the wrong team is still a paging failure.
 
+## Suppression
+
+```bash
+./scripts/lab.sh silence-drill
+```
+
+A silenced alert and a broken alert both deliver nothing. Checking only that no
+notification arrived would pass just as happily against a rule that never fired, so the
+drill requires two things at once: Alertmanager must report the alert as `suppressed`, and
+the receiver must stay empty.
+
+Pointing the contract at a condition that never fires shows why both are needed:
+
+```
+FAIL  silenced.alertmanager_state  expected 'suppressed', observed None
+PASS  silenced.no_delivery         expected 0
+```
+
+The delivery check passes there. Only the state check catches it.
+
+Silences are removed in a `finally` block and the command fails if any active silence is
+left behind, because a leftover silence would suppress the next drill and make a broken
+alerting path look healthy.
+
 ## Evidence
 
 ```bash
@@ -235,9 +260,9 @@ such flag and it would report the container started rather than the service answ
 | --- | --- |
 | 1 | contract, isolated stack, operator commands (done) |
 | 2 | promtool rule validation and negative fixtures that must fail (done) |
-| 3 | live fire drill with measured latency |
-| 4 | routing and resolution checks against the declared receiver |
-| 5 | silence and inhibition handling |
+| 3 | live fire drill with measured latency (done) |
+| 4 | routing and resolution checks against the declared receiver (done) |
+| 5 | silence handling (done) |
 | 6 | JSON, Markdown, and JUnit evidence, CI, and the clean-room teardown proof |
 
 The full plan and the twelve done criteria are in

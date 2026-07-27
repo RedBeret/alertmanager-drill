@@ -6,7 +6,7 @@ import argparse
 import subprocess
 import sys
 
-from . import config, contract, drill, evidence, observe, runner, safety, tools
+from . import config, contract, drill, evidence, observe, runner, safety, silence, tools
 
 
 def cmd_doctor(_: argparse.Namespace) -> int:
@@ -167,6 +167,33 @@ def cmd_drill(_: argparse.Namespace) -> int:
     return _report(_run_all_rules())
 
 
+def cmd_silence_drill(_: argparse.Namespace) -> int:
+    """Prove a silence suppresses delivery, and that suppression is not read as success."""
+    results = []
+    for rule in contract.load().rules:
+        drill.require_healthy_baseline(rule)
+        print(f"silencing {rule.alert}")
+        result = silence.run(rule)
+        results.append(result)
+        for check in result.checks:
+            mark = "PASS" if check.passed else "FAIL"
+            print(f"  {mark}  {check.name}  expected {check.expected!r}", end="")
+            print("" if check.passed else f", observed {check.observed!r}")
+        print()
+
+    leftover = silence.active_ids()
+    if leftover:
+        print(f"FAIL  {len(leftover)} silence(s) left behind, which would suppress the next drill")
+        return 1
+
+    failed = [result.alert for result in results if not result.passed]
+    if failed:
+        print(f"silence drill failed: {', '.join(failed)}")
+        return 1
+    print(f"silence drill passed, {len(results)} rule(s), no silences left behind")
+    return 0
+
+
 def cmd_evidence(_: argparse.Namespace) -> int:
     """One drill, three reports. All rendered from the same result so they cannot disagree."""
     results = _run_all_rules()
@@ -209,6 +236,9 @@ def main(argv: list[str] | None = None) -> int:
     commands.add_parser("evidence", help="drill once, write JSON, Markdown, and JUnit").set_defaults(
         fn=cmd_evidence
     )
+    commands.add_parser(
+        "silence-drill", help="prove a silence suppresses delivery"
+    ).set_defaults(fn=cmd_silence_drill)
     commands.add_parser("test", help="run unit and contract tests").set_defaults(fn=cmd_test)
 
     args = parser.parse_args(argv)
