@@ -47,6 +47,13 @@
   tests that fail if the three disagree on outcome or counts, if an empty run renders as
   a pass, or if a missing latency is written as zero rather than as not observed.
 
+- `alertctl silence-drill`, requiring Alertmanager to report the alert as suppressed as
+  well as the receiver staying empty, since a broken alert also delivers nothing.
+- `alertctl clean-room`, comparing neighbouring containers by state rather than by count
+  and refusing to run without a neighbour to prove isolation against.
+- A live CI job that starts the stack, drills, proves suppression, writes evidence, and
+  publishes it, with teardown under `if: always()`.
+
 ### Fixed
 
 - Receiver exited at startup because the named volume at `/captures` was root-owned and
