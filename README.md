@@ -81,6 +81,7 @@ than a bare timeout.
 | `evidence` | drill once and write JSON, Markdown, and JUnit that agree |
 | `silence-drill` | prove a silence suppresses delivery rather than the alert being broken |
 | `down` | remove only this project's containers, networks, and volumes |
+| `clean-room` | tear down and prove every neighbouring container was untouched |
 | `test` | run the unit and contract tests |
 
 Every command runs through `./scripts/lab.sh`, which is a thin wrapper around the
@@ -233,6 +234,27 @@ the stack does not supply compares unequal and fails, so a missing observation i
 implicit pass. A notification that arrives at the wrong receiver fails routing even though
 the rule fired correctly.
 
+## Proving teardown leaves a clean room
+
+```bash
+./scripts/lab.sh clean-room
+```
+
+Surveys every container on the host, tears the stack down, surveys again, and compares.
+Two things must hold. No `alertdrill` container survives in any state, because a stopped
+container is still one left behind and `exited` is not a pass. And every neighbouring
+container is in exactly the state it was in beforehand.
+
+Neighbours are compared by state, not by count. A teardown that stopped a neighbour would
+leave the count identical and look clean, so `neighbours.count` passing while
+`neighbours.unchanged` fails is a case the tests cover deliberately.
+
+The command refuses to run when no neighbouring container exists at all, since a clean room
+proved in an empty room demonstrates nothing about isolation. It also refuses when nothing
+of ours is running, since there would be nothing to tear down.
+
+Because it deletes the stack, this is not part of CI. Run `./scripts/lab.sh up` afterwards.
+
 ## Isolation
 
 Every container carries the Compose project label `alertdrill`, and `safety.py` refuses to
@@ -263,7 +285,7 @@ such flag and it would report the container started rather than the service answ
 | 3 | live fire drill with measured latency (done) |
 | 4 | routing and resolution checks against the declared receiver (done) |
 | 5 | silence handling (done) |
-| 6 | JSON, Markdown, and JUnit evidence, CI, and the clean-room teardown proof |
+| 6 | JSON, Markdown, and JUnit evidence, CI, and the clean-room teardown proof (done) |
 
 The full plan and the twelve done criteria are in
 [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.md).
