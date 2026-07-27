@@ -34,6 +34,15 @@
   rejected rather than passing vacuously.
 - GitHub Actions CI running the same entrypoints as a workstation.
 
+- `alertctl drill`, which breaks the target through its own API, measures delivery from
+  the moment the condition began, compares the notification against the declared
+  receiver, labels, and annotations, then clears the condition and requires the resolved
+  notification within its own bound.
+- An observation layer where a timeout returns `None` and an unreadable endpoint raises,
+  so an unobserved value fails the drill rather than passing quietly.
+- Restoration of the target in a `finally` block, and a refusal to start when the alert
+  is already firing or when Prometheus has never loaded the rule the contract names.
+
 ### Fixed
 
 - Receiver exited at startup because the named volume at `/captures` was root-owned and
