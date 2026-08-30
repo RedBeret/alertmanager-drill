@@ -1,6 +1,6 @@
 # Shared image for the two stdlib-only lab services. The app file is chosen at runtime
 # by the Compose service, so both stay on one pinned base layer.
-FROM python:3.14.6-slim
+FROM python:3.14.7-slim
 
 RUN useradd --uid 10001 --create-home --shell /usr/sbin/nologin drill
 
